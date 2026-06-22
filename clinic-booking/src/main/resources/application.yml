@@ -1,0 +1,90 @@
+spring:
+  application:
+    name: clinic-booking
+
+  # ── DATABASE (Supabase) ───────────────────────────────────
+  datasource:
+    url: jdbc:postgresql://aws-1-ap-south-1.pooler.supabase.com:6543/postgres?prepareThreshold=0
+    username: postgres.fxoegtmztqihxvuixksm
+    password: 9Do4uAa5Y85jciTi
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  # ── FLYWAY ───────────────────────────────────────────────
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  # ── REDIS (Upstash free) ─────────────────────────────────
+  data:
+    redis:
+      host: YOUR_UPSTASH_HOST
+      port: 6379
+      password: YOUR_UPSTASH_PASSWORD
+
+  # ── MAIL ─────────────────────────────────────────────────
+  mail:
+    host: smtp.sendgrid.net
+    port: 587
+    username: apikey
+    password: YOUR_SENDGRID_KEY
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+
+  # ── FILE UPLOAD ───────────────────────────────────────────
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 20MB
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+# ── JWT ───────────────────────────────────────────────────
+app:
+  jwt:
+    secret: "day-la-secret-key-cua-ban-phai-dai-hon-32-ky-tu-nhe"
+    access-token-expiry-ms: 900000       # 15 phút
+    refresh-token-expiry-ms: 604800000   # 7 ngày
+
+  slot:
+    hold-duration-minutes: 10
+
+  cors:
+    allowed-origins:
+      - http://localhost:3000
+      - http://localhost:5173
+
+  cloudinary:
+    cloud-name: YOUR_CLOUD_NAME
+    api-key: YOUR_API_KEY
+    api-secret: YOUR_API_SECRET
+
+# ── SWAGGER ───────────────────────────────────────────────
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+# ── ACTUATOR ──────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

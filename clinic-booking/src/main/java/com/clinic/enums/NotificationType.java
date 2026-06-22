@@ -1,0 +1,6 @@
+package com.clinic.enums;
+
+public enum NotificationType {
+    APPOINTMENT_REMINDER, APPOINTMENT_CONFIRMED,
+    APPOINTMENT_CANCELLED, RESULT_READY, PAYMENT_DUE, GENERAL
+}
