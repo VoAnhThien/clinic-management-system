@@ -60,13 +60,15 @@ class AuthProvider extends ChangeNotifier {
     }
 
     try {
+      final isPhone= loginId.startsWith('0')&& loginId.length==10;
+
       final response = await http.post(
         Uri.parse('${AppConstants.apiBaseUrl}/auth/login'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
-          // Login can be via phone or national_id
-          'phone': loginId.contains(RegExp(r'^[0-9]+$')) ? loginId : null,
-          'national_id': !loginId.contains(RegExp(r'^[0-9]+$')) ? loginId : null,
+         
+          'phone': isPhone ? loginId : null,
+          'nationalId': !isPhone ? loginId : null,
           'password': password,
         }),
       );
