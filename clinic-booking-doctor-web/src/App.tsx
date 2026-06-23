@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 
 // Đổi USE_MOCK thành false khi bạn sẵn sàng kết nối với API thật của Spring Boot.
 const USE_MOCK = false;
-const API_BASE_URL = 'http://localhost:8080/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://clinic-management-system-82ar.onrender.com/api';
 
 // Types
 interface PrescriptionItem {
@@ -167,7 +167,7 @@ export default function App() {
       }
     })
       .then(res => res.json())
-      .then(data => {
+      .then(() => {
         // Ánh xạ dữ liệu trả về từ Spring Boot DTO sang State
         // setAppointments(data);
       })
