@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../auth_provider.dart';
 import '../constants.dart';
 import 'booking_screen.dart';
+import 'doctors_screen.dart';
 import 'main_navigation.dart';
 import 'payments_screen.dart';
 
@@ -11,57 +12,51 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     final authProvider = Provider.of<AuthProvider>(context);
 
-  if (authProvider.isLoggedIn && 
-      (authProvider.appointments.isEmpty || authProvider.featuredDoctors.isEmpty)) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      authProvider.fetchHomeData();
-    });
-  }
+    // Fetch home data if not loaded yet
+    if (authProvider.isLoggedIn && !authProvider.homeDataLoaded) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        authProvider.fetchHomeData();
+      });
+    }
+
     final user = authProvider.userProfile;
-    final nextAppt = authProvider.appointments.isNotEmpty ? authProvider.appointments.first : null;
+    final nextAppt = authProvider.appointments.isNotEmpty
+        ? authProvider.appointments.first
+        : null;
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Premium Header with User Profile Greeting
-            _buildHeader(context, user),
-            
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Quick Actions Grid (UMC Care layout)
-                  _buildQuickActions(context),
-                  const SizedBox(height: 24),
-                  
-                  // Active Appointment Card
-                  if (nextAppt != null) ...[
-                    _buildActiveAppointmentCard(context, nextAppt),
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: () => authProvider.fetchHomeData(),
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildHeader(context, user),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildQuickActions(context),
                     const SizedBox(height: 24),
+                    if (nextAppt != null) ...[
+                      _buildActiveAppointmentCard(context, nextAppt),
+                      const SizedBox(height: 24),
+                    ],
+                    _buildHealthTrackers(),
+                    const SizedBox(height: 24),
+                    _buildFeaturedDoctors(context, authProvider),
+                    const SizedBox(height: 40),
                   ],
-                  
-                  // Health Trackers Section (Premium feature)
-                  _buildHealthTrackers(),
-                  const SizedBox(height: 24),
-                  
-                  // Featured Doctors list
-                  _buildFeaturedDoctors(context),
-                  const SizedBox(height: 24),
-                  
-                  // Health News
-                  _buildNewsSection(),
-                  const SizedBox(height: 40),
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -76,7 +71,8 @@ class HomeScreen extends StatelessWidget {
           bottomRight: Radius.circular(24),
         ),
       ),
-      padding: const EdgeInsets.only(top: 60, left: 20, right: 20, bottom: 24),
+      padding:
+          const EdgeInsets.only(top: 60, left: 20, right: 20, bottom: 24),
       child: Column(
         children: [
           Row(
@@ -87,7 +83,8 @@ class HomeScreen extends StatelessWidget {
                   CircleAvatar(
                     radius: 26,
                     backgroundColor: Colors.white.withOpacity(0.2),
-                    child: const Icon(Icons.person, color: Colors.white, size: 30),
+                    child: const Icon(Icons.person,
+                        color: Colors.white, size: 30),
                   ),
                   const SizedBox(width: 12),
                   Column(
@@ -95,10 +92,8 @@ class HomeScreen extends StatelessWidget {
                     children: [
                       const Text(
                         'Chào mừng bạn,',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 13,
-                        ),
+                        style:
+                            TextStyle(color: Colors.white70, fontSize: 13),
                       ),
                       Text(
                         user?['fullName'] ?? 'Bệnh nhân',
@@ -115,7 +110,8 @@ class HomeScreen extends StatelessWidget {
               IconButton(
                 icon: Stack(
                   children: [
-                    const Icon(Icons.notifications_none_outlined, color: Colors.white, size: 28),
+                    const Icon(Icons.notifications_none_outlined,
+                        color: Colors.white, size: 28),
                     Positioned(
                       right: 2,
                       top: 2,
@@ -125,36 +121,52 @@ class HomeScreen extends StatelessWidget {
                           color: Colors.red,
                           shape: BoxShape.circle,
                         ),
-                        child: const SizedBox(width: 4, height: 4),
+                        child:
+                            const SizedBox(width: 4, height: 4),
                       ),
-                    )
+                    ),
                   ],
                 ),
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Không có thông báo mới.')),
+                    const SnackBar(
+                        content: Text('Không có thông báo mới.')),
                   );
                 },
-              )
+              ),
             ],
           ),
           const SizedBox(height: 24),
-          // Search doctor bar
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const TextField(
-              decoration: InputDecoration(
-                hintText: 'Tìm bác sĩ, chuyên khoa, phòng khám...',
-                hintStyle: TextStyle(color: AppColors.textLight, fontSize: 14),
-                prefixIcon: Icon(Icons.search, color: AppColors.textLight),
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(vertical: 14),
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const DoctorsScreen()),
+              );
+            },
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const AbsorbPointer(
+                child: TextField(
+                  decoration: InputDecoration(
+                    hintText:
+                        'Tìm bác sĩ, chuyên khoa, phòng khám...',
+                    hintStyle: TextStyle(
+                        color: AppColors.textLight, fontSize: 14),
+                    prefixIcon: Icon(Icons.search,
+                        color: AppColors.textLight),
+                    border: InputBorder.none,
+                    contentPadding:
+                        EdgeInsets.symmetric(vertical: 14),
+                  ),
+                ),
               ),
             ),
-          )
+          ),
         ],
       ),
     );
@@ -171,8 +183,8 @@ class HomeScreen extends StatelessWidget {
             color: Colors.black.withOpacity(0.02),
             blurRadius: 10,
             spreadRadius: 2,
-          )
-        ]
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -180,10 +192,9 @@ class HomeScreen extends StatelessWidget {
           const Text(
             'Dịch vụ của tôi',
             style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textDark,
-            ),
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textDark),
           ),
           const SizedBox(height: 16),
           Row(
@@ -195,12 +206,9 @@ class HomeScreen extends StatelessWidget {
                 color: const Color(0xFFE0F2FE),
                 iconColor: const Color(0xFF0284C7),
                 label: 'Đặt lịch khám',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const BookingScreen()),
-                  );
-                },
+                onTap: () => Navigator.push(context,
+                    MaterialPageRoute(
+                        builder: (context) => const BookingScreen())),
               ),
               _buildActionItem(
                 context,
@@ -208,12 +216,11 @@ class HomeScreen extends StatelessWidget {
                 color: const Color(0xFFECFDF5),
                 iconColor: const Color(0xFF10B981),
                 label: 'Hồ sơ bệnh án',
-                onTap: () {
-                  Navigator.pushReplacement(
+                onTap: () => Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (context) => const MainNavigation(initialTab: 2)),
-                  );
-                },
+                    MaterialPageRoute(
+                        builder: (context) =>
+                            const MainNavigation(initialTab: 2))),
               ),
               _buildActionItem(
                 context,
@@ -221,12 +228,9 @@ class HomeScreen extends StatelessWidget {
                 color: const Color(0xFFFFF7ED),
                 iconColor: const Color(0xFFF97316),
                 label: 'Thanh toán',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const PaymentsScreen()),
-                  );
-                },
+                onTap: () => Navigator.push(context,
+                    MaterialPageRoute(
+                        builder: (context) => const PaymentsScreen())),
               ),
               _buildActionItem(
                 context,
@@ -234,15 +238,14 @@ class HomeScreen extends StatelessWidget {
                 color: const Color(0xFFF5F3FF),
                 iconColor: const Color(0xFF8B5CF6),
                 label: 'Đặt lịch hộ',
-                onTap: () {
-                  Navigator.pushReplacement(
+                onTap: () => Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (context) => const MainNavigation(initialTab: 3)),
-                  );
-                },
+                    MaterialPageRoute(
+                        builder: (context) =>
+                            const MainNavigation(initialTab: 3))),
               ),
             ],
-          )
+          ),
         ],
       ),
     );
@@ -273,20 +276,31 @@ class HomeScreen extends StatelessWidget {
           Text(
             label,
             style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textDark,
-            ),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textDark),
             textAlign: TextAlign.center,
-          )
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildActiveAppointmentCard(BuildContext context, Map<String, dynamic> appt) {
-    final bool isConfirmed = appt['status'] == 'CONFIRMED';
-    
+  Widget _buildActiveAppointmentCard(
+      BuildContext context, Map<String, dynamic> appt) {
+    final status = appt['status'] ?? '';
+    final bool isConfirmed = status == 'CONFIRMED';
+
+    // Handle both mock and real API field names
+    final doctorName = appt['doctorName'] ??
+        appt['doctor']?['fullName'] ?? '';
+    final specName = appt['specializationName'] ??
+        appt['doctor']?['specializationName'] ?? '';
+    final date = appt['date'] ?? appt['appointmentDate'] ?? '';
+    final time = appt['time'] ??
+        '${appt['timeSlot']?['startTime'] ?? ''} - ${appt['timeSlot']?['endTime'] ?? ''}';
+    final code = appt['code'] ?? appt['appointmentCode'] ?? appt['id'] ?? '';
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -301,8 +315,8 @@ class HomeScreen extends StatelessWidget {
             color: AppColors.primary.withOpacity(0.2),
             blurRadius: 10,
             spreadRadius: 2,
-          )
-        ]
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -310,59 +324,53 @@ class HomeScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Lịch hẹn sắp tới',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+              const Text('Lịch hẹn sắp tới',
+                  style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500)),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: isConfirmed ? AppColors.success : Colors.orange,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   isConfirmed ? 'Đã xác nhận' : 'Đang xử lý',
-                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          Text(
-            appt['doctorName'] ?? '',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          Text(
-            appt['specializationName'] ?? '',
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 13,
-            ),
-          ),
+          Text(doctorName,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold)),
+          Text(specName,
+              style: const TextStyle(
+                  color: Colors.white70, fontSize: 13)),
           const Divider(color: Colors.white24, height: 24),
           Row(
             children: [
-              const Icon(Icons.calendar_today, color: Colors.white, size: 16),
+              const Icon(Icons.calendar_today,
+                  color: Colors.white, size: 16),
               const SizedBox(width: 8),
-              Text(
-                appt['date'] ?? '',
-                style: const TextStyle(color: Colors.white, fontSize: 13),
-              ),
+              Text(date,
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 13)),
               const SizedBox(width: 16),
-              const Icon(Icons.access_time, color: Colors.white, size: 16),
+              const Icon(Icons.access_time,
+                  color: Colors.white, size: 16),
               const SizedBox(width: 8),
-              Text(
-                appt['time'] ?? '',
-                style: const TextStyle(color: Colors.white, fontSize: 13),
-              ),
+              Text(time,
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 13)),
             ],
           ),
           const SizedBox(height: 16),
@@ -370,28 +378,32 @@ class HomeScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Mã phiếu: ${appt['code']}',
-                style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
+                'Mã phiếu: $code',
+                style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold),
               ),
               GestureDetector(
-                onTap: () {
-                  Navigator.pushReplacement(
+                onTap: () => Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (context) => const MainNavigation(initialTab: 1)),
-                  );
-                },
+                    MaterialPageRoute(
+                        builder: (context) =>
+                            const MainNavigation(initialTab: 1))),
                 child: const Row(
                   children: [
-                    Text(
-                      'Chi tiết',
-                      style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-                    ),
-                    Icon(Icons.chevron_right, color: Colors.white, size: 16),
+                    Text('Chi tiết',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold)),
+                    Icon(Icons.chevron_right,
+                        color: Colors.white, size: 16),
                   ],
                 ),
-              )
+              ),
             ],
-          )
+          ),
         ],
       ),
     );
@@ -408,8 +420,8 @@ class HomeScreen extends StatelessWidget {
             color: Colors.black.withOpacity(0.02),
             blurRadius: 10,
             spreadRadius: 2,
-          )
-        ]
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -417,18 +429,16 @@ class HomeScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Chỉ số sức khỏe hôm nay',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textDark,
-                ),
-              ),
+              const Text('Chỉ số sức khỏe hôm nay',
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textDark)),
               TextButton(
                 onPressed: () {},
-                child: const Text('Xem lịch sử', style: TextStyle(color: AppColors.primary)),
-              )
+                child: const Text('Xem lịch sử',
+                    style: TextStyle(color: AppColors.primary)),
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -456,7 +466,7 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
             ],
-          )
+          ),
         ],
       ),
     );
@@ -483,222 +493,186 @@ class HomeScreen extends StatelessWidget {
             children: [
               Icon(icon, color: iconColor, size: 20),
               const SizedBox(width: 6),
-              Text(
-                title,
-                style: const TextStyle(fontSize: 12, color: AppColors.textLight, fontWeight: FontWeight.w500),
-              ),
+              Text(title,
+                  style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textLight,
+                      fontWeight: FontWeight.w500)),
             ],
           ),
           const SizedBox(height: 12),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textDark),
-          ),
+          Text(value,
+              style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textDark)),
           const SizedBox(height: 4),
-          Text(
-            status,
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: iconColor.withOpacity(0.8)),
-          ),
+          Text(status,
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: iconColor.withOpacity(0.8))),
         ],
       ),
     );
   }
 
-  Widget _buildFeaturedDoctors(BuildContext context) {
-    final docs = MockData.doctors;
-    
+  Widget _buildFeaturedDoctors(
+      BuildContext context, AuthProvider authProvider) {
+    final docs = authProvider.featuredDoctors;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Bác sĩ nổi bật',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textDark,
-              ),
-            ),
+            const Text('Bác sĩ nổi bật',
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textDark)),
             TextButton(
-              onPressed: () {
-                Navigator.push(
+              onPressed: () => Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const BookingScreen()),
-                );
-              },
-              child: const Text('Xem tất cả', style: TextStyle(color: AppColors.primary)),
-            )
+                  MaterialPageRoute(
+                      builder: (context) => const DoctorsScreen())),
+              child: const Text('Xem tất cả',
+                  style: TextStyle(color: AppColors.primary)),
+            ),
           ],
         ),
         const SizedBox(height: 8),
-        SizedBox(
-          height: 190,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: docs.length,
-            itemBuilder: (context, index) {
-              final doc = docs[index];
-              return Container(
-                width: 150,
-                margin: const EdgeInsets.only(right: 12),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.01),
-                      blurRadius: 5,
-                      spreadRadius: 1,
-                    )
-                  ]
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(30),
-                      child: Image.network(
-                        doc['avatarUrl'] ?? '',
-                        width: 54,
-                        height: 54,
-                        fit: BoxFit.cover,
+        if (docs.isEmpty)
+          Container(
+            height: 120,
+            alignment: Alignment.center,
+            child: const CircularProgressIndicator(color: AppColors.primary),
+          )
+        else
+          SizedBox(
+            height: 190,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: docs.length,
+              itemBuilder: (context, index) {
+                final doc = docs[index];
+                final avatarUrl =
+                    doc['avatarUrl'] ?? doc['avatar'] ?? '';
+                final specName = doc['specializationName'] ??
+                    doc['specialization']?['name'] ?? '';
+                final rating =
+                    (doc['rating'] ?? 0.0).toDouble();
+
+                return Container(
+                  width: 150,
+                  margin: const EdgeInsets.only(right: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.01),
+                        blurRadius: 5,
+                        spreadRadius: 1,
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      doc['fullName'] ?? '',
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textDark),
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      doc['specializationName'] ?? '',
-                      style: const TextStyle(fontSize: 10, color: AppColors.textLight),
-                    ),
-                    const SizedBox(height: 8),
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(30),
+                        child: avatarUrl.isNotEmpty
+                            ? Image.network(
+                                avatarUrl,
+                                width: 54,
+                                height: 54,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  width: 54,
+                                  height: 54,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withOpacity(0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.person,
+                                      color: AppColors.primary, size: 30),
+                                ),
+                              )
+                            : Container(
+                                width: 54,
+                                height: 54,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withOpacity(0.1),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.person,
+                                    color: AppColors.primary, size: 30),
+                              ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        doc['fullName'] ?? '',
+                        style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textDark),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(specName,
+                          style: const TextStyle(
+                              fontSize: 10, color: AppColors.textLight)),
+                      if (rating > 0) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.star,
+                                color: Colors.amber, size: 12),
+                            Text(rating.toStringAsFixed(1),
+                                style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 8),
+                      ElevatedButton(
+                        onPressed: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => BookingScreen(preselectedDoctor: doc),
+                            builder: (context) =>
+                                BookingScreen(preselectedDoctor: doc),
                           ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary.withOpacity(0.1),
-                        foregroundColor: AppColors.primary,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        minimumSize: const Size(0, 28),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
                         ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              AppColors.primary.withOpacity(0.1),
+                          foregroundColor: AppColors.primary,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 4),
+                          minimumSize: const Size(0, 28),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text('Đặt lịch',
+                            style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold)),
                       ),
-                      child: const Text('Đặt lịch', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-                    )
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildNewsSection() {
-    final newsList = MockData.news;
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const Text(
-          'Tin tức y khoa hữu ích',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textDark,
-          ),
-        ),
-        const SizedBox(height: 12),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: newsList.length,
-          itemBuilder: (context, index) {
-            final article = newsList[index];
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  ClipRRect(
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(12),
-                      bottomLeft: Radius.circular(12),
-                    ),
-                    child: Image.network(
-                      article['imageUrl'] ?? '',
-                      width: 90,
-                      height: 90,
-                      fit: BoxFit.cover,
-                    ),
+                    ],
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              article['category'] ?? '',
-                              style: const TextStyle(fontSize: 9, color: AppColors.primary, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            article['title'] ?? '',
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textDark),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              const Icon(Icons.access_time, size: 10, color: AppColors.textLight),
-                              const SizedBox(width: 4),
-                              Text(
-                                article['time'] ?? '',
-                                style: const TextStyle(fontSize: 10, color: AppColors.textLight),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                ],
-              ),
-            );
-          },
-        ),
+                );
+              },
+            ),
+          ),
       ],
     );
   }

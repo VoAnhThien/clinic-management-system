@@ -24,4 +24,6 @@ public interface DoctorRepository extends JpaRepository<Doctor, UUID> {
         @Param("specializationId") UUID specializationId,
         Pageable pageable
     );
+
+    boolean existsByUserId(UUID userId);
 }

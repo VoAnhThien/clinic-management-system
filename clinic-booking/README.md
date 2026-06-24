@@ -57,3 +57,16 @@ java -jar .\target\clinic-booking-0.0.1-SNAPSHOT.jar
 ## Ghi chu
 
 Du an da build thanh cong voi Java 17 va Maven wrapper.
+
+
+
+
+GET /doctors — danh sách bác sĩ (có filter clinicId, specializationId)
+GET /doctors/{id} — chi tiết bác sĩ
+GET /doctors/specializations — danh sách chuyên khoa
+GET /doctors/{doctorId}/slots?date= — slot trống theo ngày
+GET /appointments/my — lịch hẹn của tôi
+POST /appointments — đặt lịch
+PUT /appointments/{id}/cancel — hủy lịch
+GET /patients/me — profile
+GET /patients/my-profiles — thành viên gia đình

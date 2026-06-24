@@ -1,5 +1,6 @@
 package com.clinic.service;
 
+import com.clinic.dto.doctor.CreateDoctorRequest;
 import com.clinic.dto.doctor.DoctorResponse;
 import com.clinic.dto.doctor.SpecializationResponse;
 import org.springframework.data.domain.Page;
@@ -11,4 +12,8 @@ public interface DoctorService {
     Page<DoctorResponse> getAll(UUID clinicId, UUID specializationId, Pageable pageable);
     DoctorResponse getById(UUID id);
     List<SpecializationResponse> getAllSpecializations();
+    DoctorResponse create(CreateDoctorRequest request);
+
+    List<DoctorResponse> getUpcomingDoctors();
+    List<DoctorResponse> getFeaturedDoctors();
 }

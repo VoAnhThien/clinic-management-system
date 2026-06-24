@@ -12,23 +12,34 @@ class AuthProvider extends ChangeNotifier {
   Map<String, dynamic>? _userProfile;
   List<Map<String, dynamic>> _familyMembers = [];
   List<Map<String, dynamic>> _appointments = [];
-  
+  List<Map<String, dynamic>> _featuredDoctors = [];
+  List<Map<String, dynamic>> _specializations = [];
+  List<Map<String, dynamic>> _medicalRecords = [];
+  bool _homeDataLoaded = false;
+
   bool get isLoading => _isLoading;
   bool get isLoggedIn => _isLoggedIn;
   Map<String, dynamic>? get userProfile => _userProfile;
   List<Map<String, dynamic>> get familyMembers => _familyMembers;
   List<Map<String, dynamic>> get appointments => _appointments;
   String? get accessToken => _accessToken;
-
-
-
+  List<Map<String, dynamic>> get featuredDoctors => _featuredDoctors;
+  List<Map<String, dynamic>> get specializations => _specializations;
+  List<Map<String, dynamic>> get medicalRecords => _medicalRecords;
+  bool get homeDataLoaded => _homeDataLoaded;
 
   AuthProvider() {
     _loadSession();
-    // Load initial mock appointments
-    _appointments = List.from(MockData.appointments);
-    _familyMembers = List.from(MockData.familyMembers);
   }
+
+  // ── Headers helper ───────────────────────────────────────
+
+  Map<String, String> get _authHeaders => {
+        'Authorization': 'Bearer $_accessToken',
+        'Content-Type': 'application/json',
+      };
+
+  // ── Session ──────────────────────────────────────────────
 
   Future<void> _loadSession() async {
     final prefs = await SharedPreferences.getInstance();
@@ -40,57 +51,52 @@ class AuthProvider extends ChangeNotifier {
       _userProfile = json.decode(profileStr);
       _isLoggedIn = true;
       notifyListeners();
+      // Auto-load data after session restored
+      await fetchHomeData();
     }
   }
+
+  // ── Auth ─────────────────────────────────────────────────
 
   Future<bool> login(String loginId, String password) async {
     _isLoading = true;
     notifyListeners();
 
-    if (AppConstants.useMockData) {
-      await Future.delayed(const Duration(milliseconds: 1500));
-      _isLoggedIn = true;
-      _accessToken = "mock_jwt_token_xxxx";
-      _userProfile = MockData.activePatient;
-      
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('access_token', _accessToken!);
-      await prefs.setString('user_profile', json.encode(_userProfile));
-      
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    }
-
     try {
+      final isPhone = RegExp(r'^[0-9]+$').hasMatch(loginId);
       final response = await http.post(
         Uri.parse('${AppConstants.apiBaseUrl}/auth/login'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
-          // Login can be via phone or national_id
-          'phone': loginId.contains(RegExp(r'^[0-9]+$')) ? loginId : null,
-          'national_id': !loginId.contains(RegExp(r'^[0-9]+$')) ? loginId : null,
+          if (isPhone) 'phone': loginId,
+          if (!isPhone) 'nationalId': loginId,
           'password': password,
         }),
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+        final body = json.decode(response.body);
+        // Backend wraps in ApiResponse: { data: { accessToken, refreshToken } }
+        final data = body['data'] ?? body;
         _accessToken = data['accessToken'];
         _refreshToken = data['refreshToken'];
         _isLoggedIn = true;
-        
-        // Save to preferences
+
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('access_token', _accessToken!);
         await prefs.setString('refresh_token', _refreshToken ?? '');
-        
-        // Fetch patient profile details
+
         await _fetchProfile();
+        await fetchHomeData();
+
+        _isLoading = false;
+        notifyListeners();
         return true;
+      } else {
+        debugPrint('Login failed: ${response.statusCode} ${response.body}');
       }
     } catch (e) {
-      debugPrint("Login error: $e");
+      debugPrint('Login error: $e');
     }
 
     _isLoading = false;
@@ -110,31 +116,6 @@ class AuthProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    if (AppConstants.useMockData) {
-      await Future.delayed(const Duration(milliseconds: 1500));
-      _userProfile = {
-        'id': 'pat-new',
-        'fullName': fullName,
-        'nationalId': nationalId,
-        'phone': phone,
-        'dateOfBirth': dob,
-        'gender': gender.toUpperCase(),
-        'bloodType': 'O+',
-        'allergies': 'Chưa ghi nhận',
-        'address': address,
-      };
-      _isLoggedIn = true;
-      _accessToken = "mock_jwt_token_xxxx";
-      
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('access_token', _accessToken!);
-      await prefs.setString('user_profile', json.encode(_userProfile));
-
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    }
-
     try {
       final response = await http.post(
         Uri.parse('${AppConstants.apiBaseUrl}/auth/register'),
@@ -153,11 +134,12 @@ class AuthProvider extends ChangeNotifier {
       if (response.statusCode == 200 || response.statusCode == 201) {
         _isLoading = false;
         notifyListeners();
-        // Immediately log in user
         return await login(phone, password);
+      } else {
+        debugPrint('Register failed: ${response.statusCode} ${response.body}');
       }
     } catch (e) {
-      debugPrint("Registration error: $e");
+      debugPrint('Registration error: $e');
     }
 
     _isLoading = false;
@@ -166,143 +148,347 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    try {
+      if (_refreshToken != null) {
+        await http.post(
+          Uri.parse('${AppConstants.apiBaseUrl}/auth/logout'),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({'refreshToken': _refreshToken}),
+        );
+      }
+    } catch (e) {
+      debugPrint('Logout error: $e');
+    }
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('access_token');
     await prefs.remove('refresh_token');
     await prefs.remove('user_profile');
-    
+
     _isLoggedIn = false;
     _accessToken = null;
     _refreshToken = null;
     _userProfile = null;
+    _appointments = [];
+    _familyMembers = [];
+    _featuredDoctors = [];
+    _specializations = [];
+    _medicalRecords = [];
+    _homeDataLoaded = false;
     notifyListeners();
   }
+
+  // ── Profile ──────────────────────────────────────────────
 
   Future<void> _fetchProfile() async {
     if (_accessToken == null) return;
     try {
       final response = await http.get(
         Uri.parse('${AppConstants.apiBaseUrl}/patients/me'),
-        headers: {
-          'Authorization': 'Bearer $_accessToken',
-          'Content-Type': 'application/json',
-        },
+        headers: _authHeaders,
       );
       if (response.statusCode == 200) {
-        _userProfile = json.decode(response.body);
+        final body = json.decode(response.body);
+        _userProfile = body['data'] ?? body;
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('user_profile', json.encode(_userProfile));
         notifyListeners();
       }
     } catch (e) {
-      debugPrint("Fetch profile error: $e");
+      debugPrint('Fetch profile error: $e');
     }
   }
 
-  void addFamilyMember(Map<String, dynamic> member) {
-    _familyMembers.add({
-      'id': 'pat-dep-${DateTime.now().millisecondsSinceEpoch}',
-      ...member,
-    });
-    notifyListeners();
+  Future<bool> updateProfile(Map<String, dynamic> data) async {
+    if (_accessToken == null) return false;
+    try {
+      final response = await http.put(
+        Uri.parse('${AppConstants.apiBaseUrl}/patients/me'),
+        headers: _authHeaders,
+        body: json.encode(data),
+      );
+      if (response.statusCode == 200) {
+        await _fetchProfile();
+        return true;
+      }
+    } catch (e) {
+      debugPrint('Update profile error: $e');
+    }
+    return false;
   }
 
-  void addAppointment(Map<String, dynamic> appointment) {
-    _appointments.insert(0, {
-      'id': 'appt-${DateTime.now().millisecondsSinceEpoch}',
-      'code': 'UMC-${10000 + _appointments.length}-B',
-      'status': 'CONFIRMED',
-      ...appointment,
-    });
-    notifyListeners();
+  // ── Family members ────────────────────────────────────────
+
+  Future<void> fetchFamilyMembers() async {
+    if (_accessToken == null) return;
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConstants.apiBaseUrl}/patients/my-profiles'),
+        headers: _authHeaders,
+      );
+      if (response.statusCode == 200) {
+        final body = json.decode(response.body);
+        final list = body['data'] ?? body;
+        _familyMembers = List<Map<String, dynamic>>.from(list is List ? list : []);
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Fetch family members error: $e');
+    }
   }
 
+  Future<bool> addFamilyMember(Map<String, dynamic> member) async {
+    if (_accessToken == null) return false;
+    try {
+      final response = await http.post(
+        Uri.parse('${AppConstants.apiBaseUrl}/patients/my-profiles'),
+        headers: _authHeaders,
+        body: json.encode(member),
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        await fetchFamilyMembers();
+        return true;
+      }
+    } catch (e) {
+      debugPrint('Add family member error: $e');
+    }
+    return false;
+  }
 
+  // ── Appointments ──────────────────────────────────────────
 
-    // ==================== REAL API CALLS ====================
+  Future<void> fetchAppointments() async {
+    if (_accessToken == null) return;
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConstants.apiBaseUrl}/appointments/my?size=50&sort=bookedAt,desc'),
+        headers: _authHeaders,
+      );
+      if (response.statusCode == 200) {
+        final body = json.decode(response.body);
+        // Page response: { data: { content: [...] } }
+        final data = body['data'] ?? body;
+        final content = data['content'] ?? data;
+        _appointments = List<Map<String, dynamic>>.from(content is List ? content : []);
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Fetch appointments error: $e');
+    }
+  }
 
-  List<Map<String, dynamic>> _featuredDoctors = [];
-  List<Map<String, dynamic>> _news = [];
+  Future<Map<String, dynamic>?> bookAppointment({
+    required String timeSlotId,
+    required String patientProfileId,
+    String? reason,
+    String? paymentMethod,
+  }) async {
+    if (_accessToken == null) return null;
+    try {
+      final response = await http.post(
+        Uri.parse('${AppConstants.apiBaseUrl}/appointments'),
+        headers: _authHeaders,
+        body: json.encode({
+          'timeSlotId': timeSlotId,
+          'patientProfileId': patientProfileId,
+          if (reason != null && reason.isNotEmpty) 'reason': reason,
+          if (paymentMethod != null) 'paymentMethod': paymentMethod,
+        }),
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final body = json.decode(response.body);
+        final newAppt = body['data'] ?? body;
+        _appointments.insert(0, Map<String, dynamic>.from(newAppt));
+        notifyListeners();
+        return Map<String, dynamic>.from(newAppt);
+      } else {
+        debugPrint('Book appointment failed: ${response.statusCode} ${response.body}');
+      }
+    } catch (e) {
+      debugPrint('Book appointment error: $e');
+    }
+    return null;
+  }
 
-  List<Map<String, dynamic>> get featuredDoctors => _featuredDoctors;
-  List<Map<String, dynamic>> get news => _news;
+  Future<bool> cancelAppointment(String appointmentId, String reason) async {
+    if (_accessToken == null) return false;
+    try {
+      final response = await http.put(
+        Uri.parse('${AppConstants.apiBaseUrl}/appointments/$appointmentId/cancel'),
+        headers: _authHeaders,
+        body: json.encode({'reason': reason}),
+      );
+      if (response.statusCode == 200) {
+        // Update local state
+        final idx = _appointments.indexWhere((a) => a['id'].toString() == appointmentId);
+        if (idx != -1) {
+          _appointments[idx] = {..._appointments[idx], 'status': 'CANCELLED'};
+          notifyListeners();
+        }
+        return true;
+      }
+    } catch (e) {
+      debugPrint('Cancel appointment error: $e');
+    }
+    return false;
+  }
 
-  /// Gọi khi vào HomeScreen hoặc sau khi login
+  // ── Doctors & Specializations ─────────────────────────────
+
+  Future<void> fetchSpecializations() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConstants.apiBaseUrl}/doctors/specializations'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      if (response.statusCode == 200) {
+        final body = json.decode(response.body);
+        final list = body['data'] ?? body;
+        _specializations = List<Map<String, dynamic>>.from(list is List ? list : []);
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Fetch specializations error: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchDoctors({
+    String? specializationId,
+    String? clinicId,
+    int page = 0,
+    int size = 20,
+  }) async {
+    try {
+      final params = {
+        'page': '$page',
+        'size': '$size',
+        'sort': 'fullName,asc',
+        if (specializationId != null) 'specializationId': specializationId,
+        if (clinicId != null) 'clinicId': clinicId,
+      };
+      final uri = Uri.parse('${AppConstants.apiBaseUrl}/doctors')
+          .replace(queryParameters: params);
+
+      final response = await http.get(uri, headers: {'Content-Type': 'application/json'});
+
+      if (response.statusCode == 200) {
+        final body = json.decode(response.body);
+        final data = body['data'] ?? body;
+        final content = data['content'] ?? data;
+        final doctors = List<Map<String, dynamic>>.from(content is List ? content : []);
+
+        // Cache first page as featured doctors for home screen
+        if (page == 0 && specializationId == null) {
+          _featuredDoctors = doctors.take(6).toList();
+          notifyListeners();
+        }
+
+        return doctors;
+      }
+    } catch (e) {
+      debugPrint('Fetch doctors error: $e');
+    }
+    return [];
+  }
+
+  Future<Map<String, dynamic>?> fetchDoctorById(String doctorId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConstants.apiBaseUrl}/doctors/$doctorId'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      if (response.statusCode == 200) {
+        final body = json.decode(response.body);
+        return body['data'] ?? body;
+      }
+    } catch (e) {
+      debugPrint('Fetch doctor error: $e');
+    }
+    return null;
+  }
+
+  // ── Schedules & Slots ─────────────────────────────────────
+
+  Future<List<Map<String, dynamic>>> fetchDoctorSchedules(String doctorId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConstants.apiBaseUrl}/doctors/$doctorId/schedules'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      if (response.statusCode == 200) {
+        final body = json.decode(response.body);
+        final list = body['data'] ?? body;
+        return List<Map<String, dynamic>>.from(list is List ? list : []);
+      }
+    } catch (e) {
+      debugPrint('Fetch schedules error: $e');
+    }
+    return [];
+  }
+
+  Future<List<Map<String, dynamic>>> fetchAvailableSlots(
+      String doctorId, String date) async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+            '${AppConstants.apiBaseUrl}/doctors/$doctorId/slots?date=$date'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      if (response.statusCode == 200) {
+        final body = json.decode(response.body);
+        final list = body['data'] ?? body;
+        return List<Map<String, dynamic>>.from(list is List ? list : []);
+      }
+    } catch (e) {
+      debugPrint('Fetch slots error: $e');
+    }
+    return [];
+  }
+
+  // ── Medical Records ───────────────────────────────────────
+
+  Future<void> fetchMedicalRecords({String? patientId}) async {
+    if (_accessToken == null) return;
+    // Note: adjust endpoint to match your BE
+    // Common pattern: GET /medical-records?patientId=xxx
+    try {
+      final patId = patientId ?? _userProfile?['id']?.toString();
+      if (patId == null) return;
+
+      final response = await http.get(
+        Uri.parse(
+            '${AppConstants.apiBaseUrl}/medical-records?patientId=$patId&size=50&sort=date,desc'),
+        headers: _authHeaders,
+      );
+      if (response.statusCode == 200) {
+        final body = json.decode(response.body);
+        final data = body['data'] ?? body;
+        final content = data['content'] ?? data;
+        _medicalRecords =
+            List<Map<String, dynamic>>.from(content is List ? content : []);
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Fetch medical records error: $e');
+    }
+  }
+
+  // ── Home data ─────────────────────────────────────────────
+
   Future<void> fetchHomeData() async {
-    if (_accessToken == null || !AppConstants.useMockData == false) return;
-
-    _isLoading = true;
-    notifyListeners();
+    if (_accessToken == null) return;
 
     try {
       await Future.wait([
-        _fetchUpcomingAppointments(),
-        _fetchFeaturedDoctors(),
-        _fetchNews(),
+        fetchAppointments(),
+        fetchFamilyMembers(),
+        fetchSpecializations(),
+        fetchDoctors(),
       ]);
-    } catch (e) {
-      debugPrint("Fetch home data error: $e");
-    } finally {
-      _isLoading = false;
+      _homeDataLoaded = true;
       notifyListeners();
-    }
-  }
-
-  Future<void> _fetchUpcomingAppointments() async {
-    try {
-      final response = await http.get(
-        Uri.parse('${AppConstants.apiBaseUrl}/appointments/upcoming'), // ← Bạn cần xác nhận endpoint
-        headers: {
-          'Authorization': 'Bearer $_accessToken',
-          'Content-Type': 'application/json',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        _appointments = List<Map<String, dynamic>>.from(data is List ? data : []);
-      }
     } catch (e) {
-      debugPrint("Fetch appointments error: $e");
-      // Fallback to mock if needed
-      if (AppConstants.useMockData) {
-        _appointments = List.from(MockData.appointments);
-      }
-    }
-  }
-
-  Future<void> _fetchFeaturedDoctors() async {
-    try {
-      final response = await http.get(
-        Uri.parse('${AppConstants.apiBaseUrl}/doctors/featured'), // ← Cần xác nhận
-        headers: {
-          'Authorization': 'Bearer $_accessToken',
-          'Content-Type': 'application/json',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        _featuredDoctors = List<Map<String, dynamic>>.from(data is List ? data : []);
-      }
-    } catch (e) {
-      debugPrint("Fetch featured doctors error: $e");
-    }
-  }
-
-  Future<void> _fetchNews() async {
-    try {
-      final response = await http.get(
-        Uri.parse('${AppConstants.apiBaseUrl}/news'), // ← Cần xác nhận
-        headers: {'Content-Type': 'application/json'},
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        _news = List<Map<String, dynamic>>.from(data is List ? data : []);
-      }
-    } catch (e) {
-      debugPrint("Fetch news error: $e");
+      debugPrint('Fetch home data error: $e');
     }
   }
 }
