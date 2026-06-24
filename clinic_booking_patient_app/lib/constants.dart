@@ -18,11 +18,14 @@ class AppConstants {
   static const String appName = 'UMC Care';
   
   // Base API URL
-  
+  // Use Render backend in web/release builds; keep localhost/emulator for development.
+  // - Web / Release: use deployed backend
+  // - Debug on emulator: use Android emulator host 10.0.2.2
+  // - Debug on web: you can still use localhost if running backend locally
   static String apiBaseUrl = (kIsWeb || kReleaseMode)
       ? 'https://clinic-management-system-82ar.onrender.com/api'
       : 'http://10.0.2.2:8080/api';
-  static bool useMockData = false; 
+  static bool useMockData = true; // Easily toggle mock data vs real backend APIs
 }
 
 // Sample Mock Data matching Backend Schema

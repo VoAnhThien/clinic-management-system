@@ -113,9 +113,8 @@ export default function App() {
 
       if (response.ok) {
         const data = await response.json();
-        localStorage.setItem('doctor_access_token', data.data.accessToken);
-        localStorage.setItem('doctor_full_name', data.data.fullName ?? '');
-        setDoctorName(data.data.fullName ?? '');
+        // Giả sử API trả về JWT Token và thông tin User
+        localStorage.setItem('doctor_access_token', data.accessToken);
         setIsLoggedIn(true);
         if (rememberMe) {
           localStorage.setItem('doctor_logged_in', 'true');

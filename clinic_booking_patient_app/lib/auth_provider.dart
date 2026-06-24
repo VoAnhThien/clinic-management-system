@@ -64,6 +64,7 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       final isPhone = RegExp(r'^[0-9]+$').hasMatch(loginId);
+
       final response = await http.post(
         Uri.parse('${AppConstants.apiBaseUrl}/auth/login'),
         headers: {'Content-Type': 'application/json'},
@@ -85,6 +86,7 @@ class AuthProvider extends ChangeNotifier {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('access_token', _accessToken!);
         await prefs.setString('refresh_token', _refreshToken ?? '');
+
 
         await _fetchProfile();
         await fetchHomeData();
@@ -189,9 +191,12 @@ class AuthProvider extends ChangeNotifier {
       );
       if (response.statusCode == 200) {
         final body = json.decode(response.body);
+
         _userProfile = body['data'] ?? body;
+
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('user_profile', json.encode(_userProfile));
+        _isLoading = false;
         notifyListeners();
       }
     } catch (e) {
