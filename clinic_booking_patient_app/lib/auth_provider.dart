@@ -20,6 +20,9 @@ class AuthProvider extends ChangeNotifier {
   List<Map<String, dynamic>> get appointments => _appointments;
   String? get accessToken => _accessToken;
 
+
+
+
   AuthProvider() {
     _loadSession();
     // Load initial mock appointments
@@ -212,5 +215,94 @@ class AuthProvider extends ChangeNotifier {
       ...appointment,
     });
     notifyListeners();
+  }
+
+
+
+    // ==================== REAL API CALLS ====================
+
+  List<Map<String, dynamic>> _featuredDoctors = [];
+  List<Map<String, dynamic>> _news = [];
+
+  List<Map<String, dynamic>> get featuredDoctors => _featuredDoctors;
+  List<Map<String, dynamic>> get news => _news;
+
+  /// Gọi khi vào HomeScreen hoặc sau khi login
+  Future<void> fetchHomeData() async {
+    if (_accessToken == null || !AppConstants.useMockData == false) return;
+
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      await Future.wait([
+        _fetchUpcomingAppointments(),
+        _fetchFeaturedDoctors(),
+        _fetchNews(),
+      ]);
+    } catch (e) {
+      debugPrint("Fetch home data error: $e");
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _fetchUpcomingAppointments() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConstants.apiBaseUrl}/appointments/upcoming'), // ← Bạn cần xác nhận endpoint
+        headers: {
+          'Authorization': 'Bearer $_accessToken',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        _appointments = List<Map<String, dynamic>>.from(data is List ? data : []);
+      }
+    } catch (e) {
+      debugPrint("Fetch appointments error: $e");
+      // Fallback to mock if needed
+      if (AppConstants.useMockData) {
+        _appointments = List.from(MockData.appointments);
+      }
+    }
+  }
+
+  Future<void> _fetchFeaturedDoctors() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConstants.apiBaseUrl}/doctors/featured'), // ← Cần xác nhận
+        headers: {
+          'Authorization': 'Bearer $_accessToken',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        _featuredDoctors = List<Map<String, dynamic>>.from(data is List ? data : []);
+      }
+    } catch (e) {
+      debugPrint("Fetch featured doctors error: $e");
+    }
+  }
+
+  Future<void> _fetchNews() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConstants.apiBaseUrl}/news'), // ← Cần xác nhận
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        _news = List<Map<String, dynamic>>.from(data is List ? data : []);
+      }
+    } catch (e) {
+      debugPrint("Fetch news error: $e");
+    }
   }
 }
