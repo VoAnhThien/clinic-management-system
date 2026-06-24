@@ -74,17 +74,16 @@ class AuthProvider extends ChangeNotifier {
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+        final body = json.decode(response.body);
+        final data = body['data'];
         _accessToken = data['accessToken'];
         _refreshToken = data['refreshToken'];
         _isLoggedIn = true;
         
-        // Save to preferences
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('access_token', _accessToken!);
         await prefs.setString('refresh_token', _refreshToken ?? '');
         
-        // Fetch patient profile details
         await _fetchProfile();
         return true;
       }
@@ -188,9 +187,11 @@ class AuthProvider extends ChangeNotifier {
         },
       );
       if (response.statusCode == 200) {
-        _userProfile = json.decode(response.body);
+        final body = json.decode(response.body);
+        _userProfile = body['data'];
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('user_profile', json.encode(_userProfile));
+        _isLoading = false;
         notifyListeners();
       }
     } catch (e) {

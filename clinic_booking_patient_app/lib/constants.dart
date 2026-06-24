@@ -16,11 +16,8 @@ class AppColors {
 
 class AppConstants {
   static const String appName = 'UMC Care';
-  
-  // Base API URL
-  static String apiBaseUrl = (kIsWeb || kReleaseMode)
-      ? 'https://clinic-management-system-82ar.onrender.com/api'
-      : 'http://10.0.2.2:8080/api';
+
+  static String apiBaseUrl = 'https://clinic-management-system-82ar.onrender.com/api';
   static bool useMockData = false; 
 }
 

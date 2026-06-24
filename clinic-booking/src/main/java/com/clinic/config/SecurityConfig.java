@@ -34,7 +34,6 @@ public class SecurityConfig {
         this.corsProperties = corsProperties;
     }
 
-    // ── Các endpoint không cần token ────────────────────────
     private static final String[] PUBLIC_URLS = {
             "/auth/**",
             "/v3/api-docs/**",
@@ -52,7 +51,6 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_URLS).permitAll()
-                        // Bệnh nhân xem danh sách bác sĩ/dịch vụ không cần đăng nhập
                         .requestMatchers(HttpMethod.GET, "/doctors/**", "/services/**", "/clinics/**").permitAll()
                         .anyRequest().authenticated()
                 )
@@ -75,12 +73,9 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of(
-                "http://localhost:*",
-                "http://127.0.0.1:*",
-                "http://localhost:3000",
-                "http://localhost:5173"
-        ));
+
+        config.setAllowedOriginPatterns(corsProperties.getAllowedOrigins());
+        
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
