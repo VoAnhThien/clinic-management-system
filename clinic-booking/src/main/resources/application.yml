@@ -34,15 +34,15 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
 
-  # ── MAIL ─────────────────────────────────────────────────
-  mail:
-    host: smtp.sendgrid.net
-    port: 587
-    username: apikey
-    password: 
-    properties:
-      mail.smtp.auth: true
-      mail.smtp.starttls.enable: true
+  # # ── MAIL ─────────────────────────────────────────────────
+  # mail:
+  #   host: smtp.sendgrid.net
+  #   port: 587
+  #   username: apikey
+  #   password: 
+  #   properties:
+  #     mail.smtp.auth: true
+  #     mail.smtp.starttls.enable: true
 
   # ── FILE UPLOAD ───────────────────────────────────────────
   servlet:
