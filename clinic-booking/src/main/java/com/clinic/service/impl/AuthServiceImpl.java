@@ -31,11 +31,9 @@ public class AuthServiceImpl implements AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
 
-    // ── ĐĂNG NHẬP ────────────────────────────────────────────
     @Override
     @Transactional
     public AuthResponse login(LoginRequest request) {
-        // Validate: phải có phone hoặc nationalId
         if (!StringUtils.hasText(request.getPhone())
                 && !StringUtils.hasText(request.getNationalId())) {
             throw new BadRequestException("Vui lòng nhập số điện thoại hoặc số CCCD");
@@ -58,7 +56,6 @@ public class AuthServiceImpl implements AuthService {
             throw new BadRequestException("Tài khoản đã bị vô hiệu hóa");
         }
 
-        // Kiểm tra mật khẩu
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             throw new BadRequestException("Số điện thoại/CCCD hoặc mật khẩu không đúng");
         }
@@ -66,29 +63,24 @@ public class AuthServiceImpl implements AuthService {
         return buildAuthResponse(user);
     }
 
-    // ── ĐĂNG KÝ ──────────────────────────────────────────────
     @Override
     @Transactional
     public AuthResponse register(RegisterRequest request) {
-        // Validate: phải có phone hoặc nationalId
         if (!StringUtils.hasText(request.getPhone())
                 && !StringUtils.hasText(request.getNationalId())) {
             throw new BadRequestException("Vui lòng nhập số điện thoại hoặc số CCCD");
         }
 
-        // Kiểm tra trùng phone
         if (StringUtils.hasText(request.getPhone())
                 && userRepository.existsByPhone(request.getPhone())) {
             throw new BadRequestException("Số điện thoại đã được đăng ký");
         }
 
-        // Kiểm tra trùng CCCD
         if (StringUtils.hasText(request.getNationalId())
                 && userRepository.existsByNationalId(request.getNationalId())) {
             throw new BadRequestException("Số CCCD đã được đăng ký");
         }
 
-        // Tạo User
         User user = User.builder()
                 .phone(request.getPhone())
                 .nationalId(request.getNationalId())
