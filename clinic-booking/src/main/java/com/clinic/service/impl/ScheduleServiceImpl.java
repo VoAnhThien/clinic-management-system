@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -73,7 +74,6 @@ public class ScheduleServiceImpl implements ScheduleService {
             throw new BadRequestException("Chỉ được generate tối đa 60 ngày");
         }
 
-        // Map DayOfWeekType sang DayOfWeek của Java
         java.time.DayOfWeek targetDay = mapDayOfWeek(schedule.getDayOfWeek());
 
         List<TimeSlot> slots = new ArrayList<>();
@@ -81,13 +81,11 @@ public class ScheduleServiceImpl implements ScheduleService {
 
         while (!current.isAfter(req.getToDate())) {
             if (current.getDayOfWeek() == targetDay) {
-                // Sinh slots trong ngày theo slot_duration_min
                 LocalTime slotStart = schedule.getStartTime();
                 while (slotStart.plusMinutes(schedule.getSlotDurationMin())
                         .compareTo(schedule.getEndTime()) <= 0) {
                     LocalTime slotEnd = slotStart.plusMinutes(schedule.getSlotDurationMin());
 
-                    // Tránh duplicate
                     if (!timeSlotRepository.existsByScheduleIdAndSlotDateAndStartTime(
                             scheduleId, current, slotStart)) {
                         slots.add(TimeSlot.builder()
@@ -110,8 +108,9 @@ public class ScheduleServiceImpl implements ScheduleService {
 
     @Override
     public List<TimeSlotResponse> getAvailableSlots(UUID doctorId, LocalDate date) {
+        // Trả về TẤT CẢ slot kèm status để Flutter hiển thị slot tối/disabled
         return timeSlotRepository
-                .findByDoctorAndDateAndStatus(doctorId, date, SlotStatus.AVAILABLE)
+                .findByDoctorAndDate(doctorId, date)
                 .stream().map(this::toSlotResponse).toList();
     }
 
@@ -145,12 +144,20 @@ public class ScheduleServiceImpl implements ScheduleService {
     }
 
     private TimeSlotResponse toSlotResponse(TimeSlot ts) {
+        // Slot HELD đã hết hạn → coi như available
+        boolean isHeldExpired = ts.getStatus() == SlotStatus.HELD
+                && ts.getHeldUntil() != null
+                && ts.getHeldUntil().isBefore(LocalDateTime.now());
+
+        SlotStatus effectiveStatus = isHeldExpired ? SlotStatus.AVAILABLE : ts.getStatus();
+
         return TimeSlotResponse.builder()
                 .id(ts.getId())
                 .slotDate(ts.getSlotDate())
                 .startTime(ts.getStartTime())
                 .endTime(ts.getEndTime())
-                .status(ts.getStatus().name().toLowerCase())
+                .status(effectiveStatus.name().toLowerCase())
+                .available(effectiveStatus == SlotStatus.AVAILABLE)
                 .build();
     }
 }

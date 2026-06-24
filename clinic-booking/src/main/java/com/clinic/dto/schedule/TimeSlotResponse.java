@@ -12,5 +12,6 @@ public class TimeSlotResponse {
     private LocalDate slotDate;
     private LocalTime startTime;
     private LocalTime endTime;
-    private String status; // available, held, booked, blocked
+    private String status; 
+     private boolean available;
 }

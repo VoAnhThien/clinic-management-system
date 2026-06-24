@@ -1,5 +1,6 @@
 package com.clinic.entity;
 
+import com.clinic.converter.SlotStatusConverter;
 import com.clinic.enums.SlotStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -24,7 +25,7 @@ public class TimeSlot extends BaseEntity {
     @Column(name = "end_time", nullable = false)
     private LocalTime endTime;
 
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = SlotStatusConverter.class)
     @Column(nullable = false, length = 15)
     @Builder.Default
     private SlotStatus status = SlotStatus.AVAILABLE;
