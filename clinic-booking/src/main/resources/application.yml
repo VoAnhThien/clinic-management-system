@@ -86,11 +86,9 @@ springdoc:
 # ── ACTUATOR ──────────────────────────────────────────────
 management:
   endpoints:
-    health:
-      show-details: always
-  endpoints:
     web:
       exposure:
         include: health,info
+  endpoint:
     health:
       show-details: always
