@@ -86,6 +86,18 @@ public class DoctorServiceImpl implements DoctorService {
         return toResponse(doctorRepository.save(doctor));
     }
 
+    @Override
+    public List<DoctorResponse> getUpcomingDoctors() {
+        // TODO: implement logic lấy bác sĩ có lịch sắp tới
+        return doctorRepository.findAll().stream().map(this::toResponse).toList();
+    }
+
+    @Override
+    public List<DoctorResponse> getFeaturedDoctors() {
+        // TODO: implement logic lấy bác sĩ nổi bật
+        return doctorRepository.findAll().stream().map(this::toResponse).toList();
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private DoctorResponse toResponse(Doctor d) {

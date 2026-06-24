@@ -50,6 +50,6 @@ public class DoctorController {
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<DoctorResponse> create(@Valid @RequestBody CreateDoctorRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).ok(doctorService.create(request));
+        return ResponseEntity.status(HttpStatus.CREATED).body(doctorService.create(request));
     }
 }
