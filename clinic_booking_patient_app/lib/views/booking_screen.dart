@@ -748,6 +748,9 @@ class _BookingScreenState extends State<BookingScreen> {
             ),
           )
         else
+          // Thay thế toàn bộ phần GridView.builder trong _buildDateTimeSelect()
+// (từ "else" cuối cùng sau _availableSlots.isEmpty check)
+
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -760,43 +763,74 @@ class _BookingScreenState extends State<BookingScreen> {
             itemCount: _availableSlots.length,
             itemBuilder: (context, index) {
               final slot = _availableSlots[index];
-              final isSelected =
-                  _selectedTimeSlot?['id'] == slot['id'];
-              // Slot display: startTime-endTime or time field
-              final startTime = slot['startTime'] ?? slot['time'] ?? '';
+              final isSelected = _selectedTimeSlot?['id'] == slot['id'];
+
+              // Lấy status từ API: AVAILABLE, BOOKED, HELD, BLOCKED
+              final status = (slot['status'] ?? 'AVAILABLE').toString().toUpperCase();
+              final bool isAvailable = slot['available'] == true || status == 'AVAILABLE';
+
+              final startTime = slot['startTime'] ?? '';
               final endTime = slot['endTime'] ?? '';
-              final display = endTime.isNotEmpty
-                  ? '$startTime - $endTime'
-                  : startTime;
+              final display = endTime.isNotEmpty ? '$startTime - $endTime' : startTime;
+
+              // Màu theo trạng thái
+              Color bgColor;
+              Color borderColor;
+              Color textColor;
+
+              if (isSelected) {
+                bgColor = AppColors.secondary;
+                borderColor = AppColors.secondary;
+                textColor = Colors.white;
+              } else if (!isAvailable) {
+                // Đã đặt / bị giữ / bị khóa → tối
+                bgColor = const Color(0xFFEEEEEE);
+                borderColor = const Color(0xFFDDDDDD);
+                textColor = const Color(0xFFBBBBBB);
+              } else {
+                // Còn trống
+                bgColor = Colors.white;
+                borderColor = AppColors.border;
+                textColor = AppColors.textDark;
+              }
 
               return GestureDetector(
-                onTap: () {
-                  setState(() => _selectedTimeSlot = slot);
-                },
+                onTap: isAvailable
+                    ? () => setState(() => _selectedTimeSlot = slot)
+                    : null, // disable tap nếu không available
                 child: Container(
                   decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppColors.secondary
-                        : Colors.white,
+                    color: bgColor,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: isSelected
-                          ? AppColors.secondary
-                          : AppColors.border,
-                    ),
+                    border: Border.all(color: borderColor),
                   ),
-                  child: Center(
-                    child: Text(
-                      display,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: isSelected
-                            ? Colors.white
-                            : AppColors.textDark,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Text(
+                        display,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
+                          decoration: !isAvailable
+                              ? TextDecoration.lineThrough
+                              : null,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      textAlign: TextAlign.center,
-                    ),
+                      // Icon khóa cho slot không available
+                      if (!isAvailable)
+                        Positioned(
+                          top: 4,
+                          right: 6,
+                          child: Icon(
+                            Icons.lock_outline,
+                            size: 10,
+                            color: const Color(0xFFBBBBBB),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               );

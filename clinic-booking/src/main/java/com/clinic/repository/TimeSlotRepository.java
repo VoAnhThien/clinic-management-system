@@ -13,6 +13,19 @@ import java.util.UUID;
 
 public interface TimeSlotRepository extends JpaRepository<TimeSlot, UUID> {
 
+    // Lấy TẤT CẢ slots theo bác sĩ + ngày (kèm status để Flutter hiển thị)
+    @Query("""
+        SELECT ts FROM TimeSlot ts
+        JOIN ts.schedule s
+        WHERE s.doctor.id = :doctorId
+          AND ts.slotDate = :date
+        ORDER BY ts.startTime ASC
+    """)
+    List<TimeSlot> findByDoctorAndDate(
+            @Param("doctorId") UUID doctorId,
+            @Param("date") LocalDate date
+    );
+
     // Lấy slots theo bác sĩ + ngày + status
     @Query("""
         SELECT ts FROM TimeSlot ts
