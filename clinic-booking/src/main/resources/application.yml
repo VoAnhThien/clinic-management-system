@@ -38,6 +38,11 @@
         timeout: 3000
         connect-timeout: 3000
 
+        repositories:
+          enabled: false
+      
+    main:
+    lazy-initialization: true
     # ── FLYWAY ───────────────────────────────────────────────
     flyway:
       enabled: false
