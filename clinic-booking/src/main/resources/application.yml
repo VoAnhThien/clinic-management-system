@@ -9,7 +9,7 @@
       password: 9Do4uAa5Y85jciTi
       driver-class-name: org.postgresql.Driver
       hikari:
-        maximum-pool-size: 5
+        maximum-pool-size: 3
         minimum-idle: 1
         connection-timeout: 20000
         initialization-fail-timeout: 0
@@ -35,12 +35,14 @@
         port: ${REDIS_PORT:6379}
         username: ${REDIS_USER:default}
         password: ${REDIS_PASSWORD:}
+        timeout: 3000
+        connect-timeout: 3000
 
     # ── FLYWAY ───────────────────────────────────────────────
     flyway:
-      enabled: true
-      locations: classpath:db/migration
-      baseline-on-migrate: true
+      enabled: false
+      # locations: classpath:db/migration
+      # baseline-on-migrate: true
 
     # # ── MAIL ─────────────────────────────────────────────────
     # mail:
@@ -59,7 +61,7 @@
         max-request-size: 20MB
 
   server:
-    port: 8080
+    port: ${PORT:8080}
     servlet:
       context-path: /api
 
