@@ -67,7 +67,7 @@ public class AppointmentServiceImpl implements AppointmentBookingService {
                 .clinic(slot.getSchedule().getClinic())
                 .bookedBy(bookedBy)
                 .reason(req.getReason())
-                .status(AppointmentStatus.PENDING)
+                .status(AppointmentStatus.CONFIRMED)
                 .build();
 
         appointment = appointmentRepository.save(appointment);

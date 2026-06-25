@@ -295,9 +295,9 @@ class AuthProvider extends ChangeNotifier {
         headers: _authHeaders,
         body: json.encode({
           'timeSlotId': timeSlotId,
-          'patientProfileId': patientProfileId,
+          'patientId': patientProfileId,
           if (reason != null && reason.isNotEmpty) 'reason': reason,
-          if (paymentMethod != null) 'paymentMethod': paymentMethod,
+          //if (paymentMethod != null) 'paymentMethod': paymentMethod,
         }),
       );
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -432,23 +432,41 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<List<Map<String, dynamic>>> fetchAvailableSlots(
-      String doctorId, String date) async {
-    try {
-      final response = await http.get(
-        Uri.parse(
-            '${AppConstants.apiBaseUrl}/doctors/$doctorId/slots?date=$date'),
-        headers: {'Content-Type': 'application/json'},
-      );
-      if (response.statusCode == 200) {
-        final body = json.decode(response.body);
-        final list = body['data'] ?? body;
-        return List<Map<String, dynamic>>.from(list is List ? list : []);
+    String doctorId, String date) async {
+  try {
+    final response = await http.get(
+      Uri.parse('${AppConstants.apiBaseUrl}/doctors/$doctorId/slots?date=$date'),
+      headers: {'Content-Type': 'application/json'},
+    );
+    if (response.statusCode == 200) {
+      final body = json.decode(response.body);
+
+      final List<dynamic> list;
+      if (body is List) {
+        list = body;
+      } else if (body['data'] is List) {
+        list = body['data'];
+      } else {
+        return [];
       }
-    } catch (e) {
-      debugPrint('Fetch slots error: $e');
+
+      return list.map((item) {
+        final map = Map<String, dynamic>.from(item as Map);
+        return <String, dynamic>{
+          'id':        map['id']?.toString() ?? '',
+          'startTime': map['startTime']?.toString() ?? '',
+          'endTime':   map['endTime']?.toString() ?? '',
+          'slotDate':  map['slotDate']?.toString() ?? '',
+          'status':    map['status']?.toString() ?? 'AVAILABLE',
+          'available': map['available'] == true,
+        };
+      }).toList();
     }
-    return [];
+  } catch (e) {
+    debugPrint('Fetch slots error: $e');
   }
+  return [];
+}
 
   // ── Medical Records ───────────────────────────────────────
 

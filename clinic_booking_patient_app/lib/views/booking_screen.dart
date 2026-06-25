@@ -109,6 +109,10 @@ class _BookingScreenState extends State<BookingScreen> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final doctorId = _selectedDoctor!['id']?.toString() ?? '';
     final slots = await authProvider.fetchAvailableSlots(doctorId, date);
+
+    debugPrint('Slots loaded: ${slots.length} items');
+    debugPrint('First slot: ${slots.isNotEmpty ? slots.first : "empty"}');
+
     setState(() {
       _availableSlots = slots;
       _selectedTimeSlot = null;
