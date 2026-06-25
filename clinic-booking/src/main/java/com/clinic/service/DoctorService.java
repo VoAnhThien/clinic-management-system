@@ -16,4 +16,5 @@ public interface DoctorService {
 
     List<DoctorResponse> getUpcomingDoctors();
     List<DoctorResponse> getFeaturedDoctors();
+    DoctorResponse getByUserId(UUID userId);
 }

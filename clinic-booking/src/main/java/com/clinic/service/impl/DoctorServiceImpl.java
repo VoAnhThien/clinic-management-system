@@ -122,4 +122,11 @@ public class DoctorServiceImpl implements DoctorService {
                 .description(s.getDescription())
                 .build();
     }
+
+    @Override
+    public DoctorResponse getByUserId(UUID userId) {
+        Doctor doctor = doctorRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Doctor", userId));
+        return toResponse(doctor);
+    }
 }
